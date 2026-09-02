@@ -74,8 +74,8 @@ all = ["pharos-rx[encoders,anthropic,openai,ollama,dev]"]
 pharos = "pharos.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/ocanthom/pharos-rx"
-Documentation = "https://github.com/ocanthom/pharos-rx/blob/main/docs/METHODS.md"
+Homepage = "https://github.com/ocansey/pharos-rx"
+Documentation = "https://github.com/ocansey/pharos-rx/blob/main/docs/METHODS.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pharos"]

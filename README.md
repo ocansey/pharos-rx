@@ -8,7 +8,7 @@
 
 Cohort-grounded retrieval-augmented synthesis over **215,063 real patient drug reviews**, built to answer a question standard RAG cannot: **is the evidence you retrieved representative of the population you claim to be summarising?**
 
-[![CI](https://github.com/ocanthom/pharos-rx/actions/workflows/ci.yml/badge.svg)](https://github.com/ocanthom/pharos-rx/actions/workflows/ci.yml)
+[![CI](https://github.com/ocansey/pharos-rx/actions/workflows/ci.yml/badge.svg)](https://github.com/ocansey/pharos-rx/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Built with LangChain](https://img.shields.io/badge/built%20with-LangChain%20%2B%20LangGraph-1c3c3c.svg)](https://github.com/langchain-ai/langgraph)
@@ -188,7 +188,7 @@ The **benign look-alikes** carry equal weight by design. A safety layer measured
 ## Quickstart
 
 ```bash
-git clone https://github.com/ocanthom/pharos-rx.git
+git clone https://github.com/ocansey/pharos-rx.git
 cd pharos-rx
 pip install -e .
 
@@ -264,7 +264,7 @@ A few implementation choices that were made for reasons, not by default:
 @software{pharos2026,
   title  = {PHAROS: Cohort-Grounded Retrieval-Augmented Synthesis over Patient Drug Reviews},
   year   = {2026},
-  url    = {https://github.com/ocanthom/pharos-rx},
+  url    = {https://github.com/ocansey/pharos-rx},
   note   = {Introduces Stratified Evidence Sampling and the Valence Skew Divergence metric}
 }
 ```
