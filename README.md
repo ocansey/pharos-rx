@@ -250,6 +250,13 @@ A few implementation choices that were made for reasons, not by default:
 - Nothing measures answer quality as a clinician would judge it.
 - This is not a medical device and gives no medical advice.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Open gaps that would most improve the
+project: a neural-encoder benchmark, a redundancy metric that would justify or
+retire MMR, and human annotation of a gold-set sample to bound the
+metadata-derived relevance proxy.
+
 ## Documentation
 
 - **[docs/METHODS.md](docs/METHODS.md)** — the technical report: formal problem statement, estimators, evaluation protocol, threats to validity
