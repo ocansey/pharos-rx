@@ -227,7 +227,7 @@ Anthropic, OpenAI, and Ollama are interchangeable via config. A configured provi
 
 | | |
 |---|---|
-| **Tests** | 247, on a synthetic corpus built in memory — no download, no weights, no key, so the suite can gate a pull request |
+| **Tests** | 253, on a synthetic corpus built in memory — no download, no weights, no key, so the suite can gate a pull request |
 | **CI** | ruff · mypy · pytest on Python 3.10/3.11/3.12 · red-team suite · scheduled end-to-end run on the real corpus |
 | **Reproducibility** | every artifact records the config fingerprint that produced it; `pharos info` warns when a built index no longer matches the active config |
 | **Determinism** | seeded throughout; MinHash uses blake2b rather than Python's per-process-salted `hash`, which would otherwise make the corpus differ between runs |

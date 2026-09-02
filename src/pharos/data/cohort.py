@@ -38,6 +38,7 @@ support floor.
 from __future__ import annotations
 
 import math
+from collections.abc import Hashable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -212,36 +213,41 @@ class CohortStatistics:
         # the whole review table each time turns a millisecond of retrieval into
         # a hundred. Casefolded keys are computed once and grouped into positional
         # indices; lookup is then a dict hit and an `iloc`.
-        drug_key = reviews["drug_name"].astype(str).str.casefold()
-        condition_key = reviews["condition"].fillna("").astype(str).str.casefold()
-        pair_key = drug_key + "\x00" + condition_key
+        drug_key = reviews["drug_name"].astype(str).str.casefold().tolist()
+        condition_key = reviews["condition"].fillna("").astype(str).str.casefold().tolist()
 
         self._drug_index = self._positional_groups(drug_key)
-        self._pair_index = self._positional_groups(pair_key)
+        # The composite key is a *tuple*, not a delimited string. An earlier
+        # version joined the two fields with "\x00" and grouped on the result,
+        # which failed in two ways at once. pandas < 3 silently drops NUL from
+        # `Series + str + Series`, so every composite lookup missed and every
+        # cohort came back empty — invisible on pandas 3, fatal on pandas 2.
+        # And even where the separator survives, a delimited string is the wrong
+        # representation: any separator can in principle occur in a drug name,
+        # and then ("alpha", "medchronic pain") collides with ("alphamed",
+        # "chronic pain"). A tuple cannot collide and cannot be mangled.
+        self._pair_index = self._positional_groups(list(zip(drug_key, condition_key, strict=True)))
         self._distribution_cache: dict[tuple[str | None, str | None], dict[Stratum, float]] = {}
 
     # ---------------------------------------------------------------- #
     @staticmethod
-    def _positional_groups(key: pd.Series) -> dict[str, np.ndarray]:
+    def _positional_groups(keys: Sequence[Hashable]) -> dict[Any, np.ndarray]:
         """Map each distinct key to the *positional* row indices carrying it.
 
         Positional rather than label-based, so the lookup survives a frame whose
         index is not a clean range — which is what happens the moment someone
         passes a filtered slice of the corpus.
+
+        Keys are grouped in plain Python rather than through NumPy sorting.
+        Converting them to a NumPy array first forces a common string dtype,
+        which is exactly what corrupted the composite key described above; the
+        loop is O(n), runs once at construction, and cannot silently rewrite
+        the values it is indexing.
         """
-        positions = np.arange(len(key), dtype=np.int64)
-        out: dict[str, np.ndarray] = {}
-        order = np.argsort(key.to_numpy().astype(str), kind="stable")
-        sorted_keys = key.to_numpy().astype(str)[order]
-        sorted_positions = positions[order]
-        if len(sorted_keys) == 0:
-            return out
-        boundaries = np.flatnonzero(sorted_keys[1:] != sorted_keys[:-1]) + 1
-        starts = np.concatenate([[0], boundaries])
-        ends = np.concatenate([boundaries, [len(sorted_keys)]])
-        for start, end in zip(starts, ends, strict=True):
-            out[sorted_keys[start]] = sorted_positions[start:end]
-        return out
+        grouped: dict[Any, list[int]] = {}
+        for position, key in enumerate(keys):
+            grouped.setdefault(key, []).append(position)
+        return {key: np.asarray(v, dtype=np.int64) for key, v in grouped.items()}
 
     def _next_stat_id(self, prefix: str) -> str:
         self._stat_counter += 1
@@ -270,8 +276,7 @@ class CohortStatistics:
             return self.reviews
 
         if drug_name and condition:
-            key = f"{drug_name.casefold()}\x00{condition.casefold()}"
-            positions = self._pair_index.get(key)
+            positions = self._pair_index.get((drug_name.casefold(), condition.casefold()))
             if positions is not None:
                 return self.reviews.iloc[positions]
             return self.reviews.iloc[[]]

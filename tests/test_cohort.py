@@ -179,3 +179,66 @@ class TestCompareDrugs:
     def test_skips_missing_drugs(self, stats):
         result = stats.compare_drugs(["Alphamed", "Nonexistium"], "Chronic Pain")
         assert len(result["cohorts"]) == 1
+
+
+class TestCohortIndexKeys:
+    """Regression tests for the composite (drug, condition) index key.
+
+    An earlier implementation joined the two fields with a NUL byte and grouped
+    on the resulting string. pandas < 3 silently drops NUL from
+    ``Series + str + Series``, so every composite lookup missed and every cohort
+    came back empty — passing on pandas 3, failing on pandas 2, with no error
+    anywhere. These tests pin the behaviour that fix depends on.
+    """
+
+    def test_composite_lookup_returns_the_right_rows(self, stats):
+        frame = stats.cohort_frame("Alphamed", "Chronic Pain")
+        assert len(frame) == 52
+        assert set(frame["drug_name"]) == {"Alphamed"}
+        assert set(frame["condition"]) == {"Chronic Pain"}
+
+    def test_same_drug_different_conditions_do_not_merge(self, stats):
+        pain = stats.cohort_frame("Alphamed", "Chronic Pain")
+        insomnia = stats.cohort_frame("Alphamed", "Insomnia")
+        assert len(pain) and len(insomnia)
+        assert set(pain["review_id"]).isdisjoint(insomnia["review_id"])
+        assert len(pain) + len(insomnia) == len(stats.cohort_frame("Alphamed"))
+
+    def test_lookup_is_case_insensitive(self, stats):
+        expected = len(stats.cohort_frame("Alphamed", "Chronic Pain"))
+        for drug, cond in (
+            ("alphamed", "chronic pain"),
+            ("ALPHAMED", "CHRONIC PAIN"),
+            ("AlPhAmEd", "ChRoNiC pAiN"),
+        ):
+            assert len(stats.cohort_frame(drug, cond)) == expected
+
+    def test_unknown_cohort_returns_empty_not_everything(self, stats):
+        # The dangerous failure: a missed lookup falling back to the whole
+        # corpus would silently answer about the wrong population.
+        assert len(stats.cohort_frame("Alphamed", "Nonexistent Condition")) == 0
+        assert len(stats.cohort_frame("Nonexistium", "Chronic Pain")) == 0
+
+    def test_composite_keys_cannot_collide_across_a_boundary(self):
+        """A delimited string key can collide; a tuple key cannot.
+
+        ("alpha", "medchronic pain") and ("alphamed", "chronic pain") concatenate
+        to the same string once a separator is lost or appears in the data.
+        """
+        from pharos.data.cohort import CohortStatistics
+
+        groups = CohortStatistics._positional_groups(
+            [("alpha", "medchronic pain"), ("alphamed", "chronic pain")]
+        )
+        assert len(groups) == 2
+        assert groups[("alpha", "medchronic pain")].tolist() == [0]
+        assert groups[("alphamed", "chronic pain")].tolist() == [1]
+
+    def test_positional_groups_preserves_order_and_covers_every_row(self):
+        from pharos.data.cohort import CohortStatistics
+
+        keys = ["b", "a", "b", "c", "a", "b"]
+        groups = CohortStatistics._positional_groups(keys)
+        assert groups["b"].tolist() == [0, 2, 5]
+        assert groups["a"].tolist() == [1, 4]
+        assert sum(len(v) for v in groups.values()) == len(keys)

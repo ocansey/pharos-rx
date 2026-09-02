@@ -37,6 +37,10 @@ classifiers = [
 dependencies = [
     "numpy>=1.24",
     "pandas>=2.0",
+    # Required by the Parquet corpus format. Declared explicitly because pandas
+    # does not depend on it, and its absence surfaces only at `build-corpus`
+    # time as an opaque "Unable to find a usable engine".
+    "pyarrow>=14.0",
     "scikit-learn>=1.3",
     "scipy>=1.10",
     "pydantic>=2.6",
