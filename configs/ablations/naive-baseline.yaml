@@ -1,0 +1,7 @@
+# Dense top-k with no fusion, no redundancy control, no stratification:
+# what a conventional RAG retriever does.
+run_name: naive-baseline
+retrieval:
+  mode: dense
+  rerank: none
+  stratify: false

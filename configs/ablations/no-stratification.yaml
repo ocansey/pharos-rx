@@ -1,0 +1,4 @@
+# Conventional top-k. The mechanism this project introduces, removed.
+run_name: no-stratification
+retrieval:
+  stratify: false

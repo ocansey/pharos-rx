@@ -1,0 +1,6 @@
+# Equal quotas per stratum instead of matching the cohort. The control that
+# shows the benefit comes from matching the true distribution, not from
+# rebalancing per se -- this configuration is worse than doing nothing.
+run_name: uniform-strata
+retrieval:
+  strata_source: uniform

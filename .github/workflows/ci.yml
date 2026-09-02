@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONHASHSEED: "0"
+
+jobs:
+  quality:
+    name: lint & types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: ruff check src tests
+      - run: ruff format --check src tests
+      - run: mypy src/pharos
+
+  test:
+    name: tests (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: pip install -e ".[dev]"
+      # The suite builds its own synthetic corpus in memory: no dataset
+      # download, no model weights, no API key. That is the point -- if a test
+      # needed any of those, it could not gate a pull request.
+      - run: pytest -q --cov=pharos --cov-report=term-missing
+      - name: Upload coverage
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: .coverage
+          if-no-files-found: ignore
+
+  safety:
+    name: red-team suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      # Runs the full 42-probe suite against the rule layer, including the
+      # benign look-alikes that catch over-refusal. A safety layer measured only
+      # on refusal rate looks best when it refuses everything.
+      - run: pytest -q tests/test_safety.py
+
+  reproduce:
+    name: end-to-end on real data
+    runs-on: ubuntu-latest
+    # The full pipeline against the real 215,063-review corpus. Scheduled and
+    # manual only: it downloads ~110 MB and takes several minutes, which is too
+    # slow to gate every push but too important to never check.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: pharos fetch-data
+      - run: pharos audit-labels --top 20
+      - run: pharos build-corpus
+      - run: pharos build-index
+      - run: pharos evaluate --n-queries 100
+      - run: pharos redteam
+      - uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-results
+          path: |
+            artifacts/*.json
+            docs/RESULTS.md

@@ -1,0 +1,103 @@
+# ---------------------------------------------------------------------------
+# Condition-label repair table
+# ---------------------------------------------------------------------------
+# The `condition` column of the Drugs.com corpus carries a systematic
+# character-deletion defect introduced upstream, during the original scrape.
+# `pharos audit-labels` reproduces the forensics summarised here; docs/METHODS.md
+# §3.2 tells the story in full. In brief, two deletions were applied:
+#
+#   D1 (trailing, corpus-wide)   the regex /[or]+$/i was deleted from the end of
+#                                every label. Evidence: of the 836 distinct
+#                                labels in the corpus, exactly zero end in "er"
+#                                -- an impossibility for a 916-label medical
+#                                vocabulary containing Cancer, Ulcer, Fever,
+#                                Bladder, Disorder and Shoulder.
+#
+#   D2 (leading, subset of rows) the regex /^.*?f[or]*/i was deleted from the
+#                                front. Evidence: "Glioblastoma Multiforme"
+#                                survives as "me" (n=2) and "Dermatitis
+#                                Herpetiformis" as "mis" (n=5) -- both cut at
+#                                their first internal "f", exactly as the
+#                                pattern predicts, and both otherwise
+#                                inexplicable.
+#
+# Consequence, and the reason this file exists: 6.7% of the corpus files its
+# bipolar reviews under "Bipolar Disorde". A metadata filter for "Bipolar
+# Disorder" returns nothing. Every cohort statistic computed over the raw
+# labels is computed over a silently mislabelled population.
+#
+# Repairs below are applied in order: artifact -> leading -> trailing. Anything
+# not covered here is left untouched and reported as `ok`; anything listed under
+# `unrepairable` is set to null rather than guessed.
+# ---------------------------------------------------------------------------
+
+# Rows whose condition field captured the review footer instead of a condition.
+# Matched by regex, not enumerated; 80 distinct values over 1,171 rows.
+artifact_pattern: '^\s*\d+\s*</span>\s*users found this comment helpful\.?\s*$'
+
+# D2 inverses. Each key is an observed corrupted label; each value is the unique
+# string that reproduces the key under /^.*?f[or]*/i deletion and is an attested
+# medical term.
+leading:
+  "ibromyalgia": "Fibromyalgia"
+  "mance Anxiety": "Performance Anxiety"
+  "emale Infertility": "Female Infertility"
+  "atigue": "Fatigue"
+  "acial Wrinkles": "Facial Wrinkles"
+  "acial Lipoatrophy": "Facial Lipoatrophy"
+  "zen Shoulde": "Frozen Shoulder"
+  "eve": "Fever"
+  "lic Acid Deficiency": "Folic Acid Deficiency"
+  "amilial Mediterranean Feve": "Familial Mediterranean Fever"
+  "amilial Cold Autoinflammatory Syndrome": "Familial Cold Autoinflammatory Syndrome"
+  "mis": "Dermatitis Herpetiformis"
+  "me": "Glioblastoma Multiforme"
+  "cal Segmental Glomerulosclerosis": "Focal Segmental Glomerulosclerosis"
+  "actor IX Deficiency": "Factor IX Deficiency"
+  "llicle Stimulation": "Follicle Stimulation"
+  "llicular Lymphoma": "Follicular Lymphoma"
+  "ailure to Thrive": "Failure to Thrive"
+  "m Pain Disorde": "Somatoform Pain Disorder"
+  "t Care": "Foot Care"
+  "ibrocystic Breast Disease": "Fibrocystic Breast Disease"
+  "unctional Gastric Disorde": "Functional Gastric Disorder"
+  "ungal Infection Prophylaxis": "Fungal Infection Prophylaxis"
+  "ungal Pneumonia": "Fungal Pneumonia"
+
+# D1 inverses, as suffix rewrites. Applied only when the label ends with the
+# key; each is unique in the corpus vocabulary and has no legitimate homograph.
+trailing:
+  "Disorde": "Disorder"
+  "Cance": "Cancer"
+  "Ulce": "Ulcer"
+  "Feve": "Fever"
+  "Shoulde": "Shoulder"
+  "Bladde": "Bladder"
+  "Zoste": "Zoster"
+  "Flutte": "Flutter"
+  "Versicol": "Versicolor"
+  "Blocke": "Blocker"
+
+# Labels that look corrupted to the detector but are not. Without this list the
+# lowercase-initial heuristic would "repair" a correctly-spelled eponym.
+whitelist:
+  - "von Willebrand's Disease"
+
+# A second upstream defect: drug names leaked into the condition column, then
+# were themselves truncated by D2. The original condition is not recoverable
+# from the row, so these are set to null and the review is retained with no
+# condition rather than filed under a fabricated one.
+unrepairable:
+  - "moterol)"
+  - "min)"
+  - "ge (amlodipine / valsartan)"
+  - "ge HCT (amlodipine / hydrochlorothiazide / valsartan)"
+  - "moterol / mometasone)"
+  - "min / sitagliptin)"
+  - "min / saxagliptin)"
+  - "min / pioglitazone)"
+  - "min / rosiglitazone)"
+  - "mulation) (phenylephrine)"
+  - "tic (mycophenolic acid)"
+  - "t Pac with Cyclobenzaprine (cyclobenzaprine)"
+  - "mist ("

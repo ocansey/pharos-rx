@@ -1,0 +1,7 @@
+# All 215,063 reviews with a neural encoder. Slower to build; the settings
+# behind the headline numbers for anyone who wants to reproduce at full scale.
+run_name: full-corpus
+data:
+  sample_size: null
+index:
+  encoder: sentence-transformers

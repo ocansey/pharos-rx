@@ -1,0 +1,87 @@
+# PHAROS — default configuration.
+#
+# These are the settings behind every number in docs/RESULTS.md unless a row
+# names an overlay from configs/ablations/. Each overlay changes exactly one
+# mechanism, which is what makes the deltas attributable.
+
+run_name: default
+
+paths:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  index_dir: data/index
+  artifacts_dir: artifacts
+
+data:
+  # 25k reviews keeps a cold-clone build under ~3 minutes while retaining
+  # every condition that clears min_condition_support. Set to null for all
+  # 215,063 reviews.
+  sample_size: 25000
+  seed: 20260902
+  drop_unlabelled_conditions: true
+  min_condition_support: 25
+  min_cohort_support: 10
+  dedup_enabled: true
+  dedup_threshold: 0.92
+  min_unit_chars: 60
+  max_unit_chars: 420
+
+index:
+  # 'lsa' reproduces on any machine with no downloads. Switch to
+  # 'sentence-transformers' (pip install '.[encoders]') for the headline row.
+  encoder: lsa
+  st_model: sentence-transformers/all-MiniLM-L6-v2
+  embedding_dim: 384
+  st_batch_size: 64
+  normalize: true
+  tfidf_min_df: 3
+  tfidf_max_df: 0.55
+  tfidf_ngram_max: 2
+  bm25_k1: 1.4
+  bm25_b: 0.72
+
+retrieval:
+  candidate_k: 120
+  final_k: 12
+  mode: hybrid
+  rrf_k: 60
+  lexical_weight: 0.5
+  stratify: true
+  strata_source: cohort
+  min_slots_per_stratum: 1
+  max_units_per_review: 2
+  mmr_lambda: 0.65
+  rerank: mmr
+  abstain_below_score: 0.0
+  abstain_below_units: 3
+
+llm:
+  # 'mock' is deterministic and offline, so the graph is testable in CI.
+  # Set PHAROS_LLM__PROVIDER=anthropic|openai|ollama to generate for real.
+  provider: mock
+  model: null
+  temperature: 0.0
+  max_tokens: 1400
+  timeout_s: 90
+  max_retries: 3
+
+agent:
+  max_repair_rounds: 1
+  verify_claims: true
+  strip_unsupported: true
+  enable_cohort_stats: true
+  enable_disproportionality: true
+
+safety:
+  enabled: true
+  refuse_personal_medical_advice: true
+  crisis_routing: true
+  always_disclaim: true
+
+eval:
+  n_queries: 300
+  seed: 7
+  k_values: [1, 3, 5, 10, 20]
+  redteam_per_category: 6
+  bootstrap_n: 1000
+  bootstrap_alpha: 0.05
